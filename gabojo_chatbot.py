@@ -4,7 +4,7 @@ from streamlit_chat import message
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-
+import datetime
 import json
 def refresh_chat():
     # Clear the chat session state
@@ -19,7 +19,7 @@ def show_home():
     st.subheader("Gabojo Chat??")
     st.write("가보조 챗은 사용자들의 취향을 고려해서 여행지를 추천해주는 맞춤형 챗봇입니다.\n")
     st.subheader("사용법")
-    st.write("메뉴에 챗봇을 눌러 원하는 여행 지역, 취향을 적고 일정에 추가해")
+    st.write("메뉴에 챗봇을 눌러 원하는 여행 지역, 취향을 적고 일정에 추가해주세여~")
 
 def show_travel_chatbot():
     @st.cache(allow_output_mutation=True)
@@ -32,9 +32,16 @@ def show_travel_chatbot():
         df = pd.read_csv('tour_dataset.csv')
         df['embedding'] = df['embedding'].apply(json.loads)
         return df
+    
+    @st.cache(allow_output_mutation=True)
+    def get_course_dataset():
+        df = pd.read_csv('tour_course.csv')
+        df['embedding'] = df['embedding'].apply(json.loads)
+        return df    
 
     model = cached_model()
     df = get_dataset()
+    course_df = get_course_dataset()
 
     st.header('여행지 추천 챗봇')
     st.markdown("[gabojo github주소](https://github.com/sawodud/gabojo)")
@@ -53,23 +60,42 @@ def show_travel_chatbot():
         submitted = st.form_submit_button('전송')
 
     if submitted and user_input:
+        if user_input == '다른여행지' and st.session_state.past:
+            previous_input = st.session_state.past[-1]
+            user_input = previous_input
+
         embedding = model.encode(user_input)
 
         df['distance'] = df['embedding'].map(lambda x: cosine_similarity([embedding], [x]).squeeze())
-        answer = df.loc[df['distance'].idxmax()]
+        course_df['distance'] = course_df['embedding'].map(lambda x: cosine_similarity([embedding], [x]).squeeze())
+        top_3_indices = df['distance'].nlargest(3).index
+        top_course_indices = course_df['distance'].nlargest(5).index
+
+        if '코스' in user_input and '여행' in user_input:
+            if course_df.loc[top_course_indices[0], 'distance'] >= 0.7:
+                answers = course_df.loc[top_course_indices]
+                for idx, answer in answers.iterrows():
+                    st.session_state.generated.append((user_input, "에 대한 유사한 여행 코스 추천입니다.\n", "여행 코스명: ", answer['시티투어코스명'], "\n", "코스 정보: ", answer['시티투어코스정보'], "\n"))
+            else:
+                st.session_state.generated.append((user_input, "무슨말인지 모르겠습니다. 더 구체적인 정보를 입력해주세요.\n ex) '지역이름' '즐기고싶은 것' 등을 적어주세요."))
+        else:
+            if df.loc[top_3_indices[0], 'distance'] >= 0.6:
+                answers = df.loc[top_3_indices]
+
+                for idx, answer in answers.iterrows():
+                    st.session_state.generated.append((user_input, "에 대한 추천 여행지입니다.\n", "관광지명: ", answer['관광지명'], "\n", "여행지 정보: ", answer['관광지소개'], "\n주소: ", answer['소재지도로명주소'], "\n 공공편익시설정보: ", answer['공공편익시설정보'],'\n\n 관련다른여행지를 추천받으시려면 \'다른여행지\'을 입력해주세요'))
+            else:
+                st.session_state.generated.append((user_input, "무슨말인지 모르겠습니다. 더 구체적인 정보를 입력해주세요.\n ex) '지역이름' '즐기고싶은 것' 등을 적어주세요."))
 
         st.session_state.past.append(user_input)
-        st.session_state.generated.append((user_input,"에 대한 추천 여행지 입니다.\n","관광지명: ",answer['관광지명'],"\n","여행지 정보: ",answer['관광지소개'],"\n주소: ",answer['소재지도로명주소'],"\n 공공편익시설정보: ",answer['공공편익시설정보']))
-        
 
+
+        
     for i in range(len(st.session_state['past'])):
         message(st.session_state['past'][i], is_user=True, key=str(i) + '_user')
         if len(st.session_state['generated']) > i:
             message(st.session_state['generated'][i], key=str(i) + '_bot')
-            
 
-import streamlit as st
-import pandas as pd
 
 def show_schedule_management():
     st.title("일정 관리")
