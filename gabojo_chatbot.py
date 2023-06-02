@@ -68,22 +68,20 @@ def show_travel_chatbot():
 
         df['distance'] = df['embedding'].map(lambda x: cosine_similarity([embedding], [x]).squeeze())
         course_df['distance'] = course_df['embedding'].map(lambda x: cosine_similarity([embedding], [x]).squeeze())
-        top_3_indices = df['distance'].nlargest(3).index
-        top_course_indices = course_df['distance'].nlargest(5).index
+        top_dest_indices = df['distance'].nlargest(3).index
 
-        if '코스' in user_input and '여행' in user_input:
-            if course_df.loc[top_course_indices[0], 'distance'] >= 0.7:
-                answers = course_df.loc[top_course_indices]
-                for idx, answer in answers.iterrows():
-                    st.session_state.generated.append((user_input, "에 대한 유사한 여행 코스 추천입니다.\n", "여행 코스명: ", answer['시티투어코스명'], "\n", "코스 정보: ", answer['시티투어코스정보'], "\n"))
+        top_course_indices = course_df['distance'].nlargest(3).index
+
+        if '코스' in user_input and '추천' in user_input:
+            if course_df.loc[top_course_indices[0], 'distance']:
+                answer = course_df.loc[top_course_indices[0]]
+                st.session_state.generated.append((user_input, "에 대한 유사한 여행 코스 추천입니다.\n", "여행 코스명: ", answer['시티투어코스명'], "\n", "코스 정보: ", answer['시티투어코스정보'], "\n"))
             else:
                 st.session_state.generated.append((user_input, "무슨말인지 모르겠습니다. 더 구체적인 정보를 입력해주세요.\n ex) '지역이름' '즐기고싶은 것' 등을 적어주세요."))
         else:
-            if df.loc[top_3_indices[0], 'distance'] >= 0.6:
-                answers = df.loc[top_3_indices]
-
-                for idx, answer in answers.iterrows():
-                    st.session_state.generated.append((user_input, "에 대한 추천 여행지입니다.\n", "관광지명: ", answer['관광지명'], "\n", "여행지 정보: ", answer['관광지소개'], "\n주소: ", answer['소재지도로명주소'], "\n 공공편익시설정보: ", answer['공공편익시설정보'],'\n\n 관련다른여행지를 추천받으시려면 \'다른여행지\'을 입력해주세요'))
+            if df.loc[top_dest_indices[0], 'distance'] >= 0.5:
+                answer = df.loc[top_dest_indices[0]]
+                st.session_state.generated.append((user_input, "에 대한 추천 여행지입니다.\n", "관광지명: ", answer['관광지명'], "\n", "여행지 정보: ", answer['관광지소개'], "\n주소: ", answer['소재지도로명주소'], "\n 공공편익시설정보: ", answer['공공편익시설정보']))
             else:
                 st.session_state.generated.append((user_input, "무슨말인지 모르겠습니다. 더 구체적인 정보를 입력해주세요.\n ex) '지역이름' '즐기고싶은 것' 등을 적어주세요."))
 
@@ -95,7 +93,6 @@ def show_travel_chatbot():
         message(st.session_state['past'][i], is_user=True, key=str(i) + '_user')
         if len(st.session_state['generated']) > i:
             message(st.session_state['generated'][i], key=str(i) + '_bot')
-
 
 def show_schedule_management():
     st.title("일정 관리")
