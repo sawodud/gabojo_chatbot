@@ -79,7 +79,7 @@ def show_travel_chatbot():
             else:
                 st.session_state.generated.append((user_input, "무슨말인지 모르겠습니다. 더 구체적인 정보를 입력해주세요.\n ex) '지역이름' '즐기고싶은 것' 등을 적어주세요."))
         else:
-            if df.loc[top_dest_indices[0], 'distance']:
+            if df.loc[top_dest_indices[0], 'distance'] > 0.5:
                 answer = df.loc[top_dest_indices[0]]
                 st.session_state.generated.append((user_input, "에 대한 추천 여행지입니다.\n", "관광지명: ", answer['관광지명'], "\n", "여행지 정보: ", answer['관광지소개'], "\n주소: ", answer['소재지도로명주소'], "\n 공공편익시설정보: ", answer['공공편익시설정보']))
             else:
